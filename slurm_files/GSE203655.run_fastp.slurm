@@ -13,4 +13,4 @@ module load gcc/11.4.0
 module load openmpi/4.1.4
 module load R/4.5.0
 
-Rscript src/GSE203655.run_fastp.R
+Rscript src/pre_processing/GSE203655.run_fastp.R
