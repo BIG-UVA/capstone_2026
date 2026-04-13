@@ -7,7 +7,7 @@
 #SBATCH -p standard
 #SBATCH -A harrislab
 #SBATCH --mem=20GB
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=8
 
 module load gcc
 module load salmon
