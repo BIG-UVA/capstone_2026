@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>history.scrollRestoration = "manual"; window.scrollTo(0, 0);</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DE Explorer — Microglial Transcriptomics</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="brand">Microglial Transcriptomics Explorer</a>
+    <a href="index.html">Home</a>
+    <a href="de-explorer.html" class="active">DE Explorer</a>
+    <a href="pathways.html">Pathway Analysis</a>
+    <a href="consensus.html">Consensus Genes</a>
+    <a href="heatmap.html">Gene Explorer</a>
+  </nav>
+
+  <div class="de-page-wrapper">
+
+    <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+    <aside class="de-sidebar">
+
+      <div class="sidebar-app-label">DE Explorer</div>
+
+      <!-- 1. gene search -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Search gene</div>
+        <input type="text" id="gene-search"
+               placeholder="e.g. Trem2, Apoe..."
+               title="Search by gene symbol or name">
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <!-- 2. dataset -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Dataset</div>
+        <select id="dataset-select" title="Select dataset"></select>
+      </div>
+
+      <!-- 3. comparison -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Comparison</div>
+        <select id="comparison-select" title="Select comparison"></select>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <!-- 3b. LFC estimate -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">log2FC estimate</div>
+        <div class="filter-options" id="lfc-mode-toggle">
+          <div class="filter-option active" data-value="shrunk">
+            Shrunk (apeglm)
+          </div>
+          <div class="filter-option" data-value="raw">
+            Raw (MLE)
+          </div>
+        </div>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <!-- 4. direction filter -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Filter by direction</div>
+        <div class="filter-options" id="dir-filter-toggle">
+          <div class="filter-option active" data-value="all">
+            <span class="dot dot-all"></span> All genes
+          </div>
+          <div class="filter-option" data-value="upregulated">
+            <span class="dot dot-up"></span> Upregulated
+          </div>
+          <div class="filter-option" data-value="downregulated">
+            <span class="dot dot-down"></span> Downregulated
+          </div>
+        </div>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <!-- 5. LFC threshold -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Min |log2FC| threshold</div>
+        <div class="slider-row">
+          <span style="font-size:10px;color:#64748b;">0</span>
+          <span class="slider-value" id="lfc-value">0.50</span>
+          <span style="font-size:10px;color:#64748b;">3</span>
+        </div>
+        <input type="range" id="lfc-slider"
+               min="0" max="3" step="0.25" value="0.5"
+               title="Set minimum absolute log2 fold change threshold">
+        <div class="slider-ticks">
+          <span>0</span><span>1</span><span>2</span><span>3</span>
+        </div>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <!-- 6. padj threshold -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Significance threshold</div>
+        <div class="padj-options">
+          <button class="padj-btn active" data-value="0.05">0.05</button>
+          <button class="padj-btn" data-value="0.01">0.01</button>
+          <button class="padj-btn" data-value="0.001">0.001</button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ── MAIN CONTENT ───────────────────────────────────── -->
+    <div class="de-main">
+
+      <div>
+        <h1>Differential Expression Explorer</h1>
+        <p class="subtitle">Select a dataset and comparison to explore significantly
+           up or downregulated genes. Click any gene to see its expression across samples.</p>
+      </div>
+
+      <!-- stat cards -->
+      <div class="stat-grid">
+        <div class="stat-card gray">
+          <div class="stat-label">total significant</div>
+          <div class="stat-value" id="stat-total">—</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-label">upregulated</div>
+          <div class="stat-value" id="stat-up">—</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">downregulated</div>
+          <div class="stat-value" id="stat-down">—</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">comparison</div>
+          <div class="stat-value" id="stat-comparison"
+               style="font-size:12px;font-weight:600;line-height:1.3;">—</div>
+        </div>
+      </div>
+
+      <!-- volcano -->
+      <div class="section">
+        <div class="section-title">Volcano Plot</div>
+        <div class="section-desc">Each dot is a gene. X-axis = fold change between
+          conditions. Y-axis = statistical significance. Colored dots pass both the
+          LFC and significance thresholds set in the sidebar. Hover for gene name.
+          Click to load expression below.</div>
+        <!-- active filter tags -->
+        <div class="active-filters" id="active-filters"></div>
+        <div class="plot-wrap">
+          <div id="volcano-plot" style="height:480px;width:100%;"></div>
+        </div>
+      </div>
+
+      <!-- expression -->
+      <div class="section">
+        <div class="section-title">Expression by Sample</div>
+        <div class="section-desc">TPM (transcripts per million) for the selected gene
+          across all samples. Each bar is one biological sample, colored by condition.</div>
+
+        <div class="gene-info-card" id="gene-info-card">
+          <div>
+            <div class="gene-name" id="gene-info-symbol">—</div>
+            <div class="gene-full-name" id="gene-info-name">—</div>
+          </div>
+          <div class="gene-stats">
+            <div class="gene-stat-item">
+              <div class="label" id="gene-info-lfc-label">log2FC</div>
+              <div class="value" id="gene-info-lfc">—</div>
+            </div>
+            <div class="gene-stat-item">
+              <div class="label">adj. p-value</div>
+              <div class="value" id="gene-info-padj">—</div>
+            </div>
+            <div class="gene-stat-item">
+              <div class="label">direction</div>
+              <div class="value" id="gene-info-dir">—</div>
+            </div>
+            <div class="gene-stat-item">
+              <div class="label">Ensembl ID</div>
+              <div class="value" id="gene-info-id" style="font-size:11px;">—</div>
+            </div>
+          </div>
+          <button class="clear-btn" onclick="resetExpression()">✕ clear</button>
+        </div>
+
+        <div class="plot-wrap" id="expression-wrap">
+          <div id="expression-placeholder" class="expr-placeholder">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.5">
+              <path d="M3 3v18h18"/>
+              <path d="M7 16l4-4 4 4 4-4"/>
+            </svg>
+            Click a gene in the volcano plot or table to load its expression
+          </div>
+          <div id="expression-plot"
+               style="height:380px;width:100%;display:none;"></div>
+        </div>
+      </div>
+
+
+      <!-- DE table -->
+      <div class="section">
+        <div class="section-title">Significant DE Genes</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div class="section-desc" style="margin-bottom:0;max-width:500px;">Genes passing the
+            significance thresholds. Click column headers to sort. Click a row to load
+            expression. Select "Combined" in the dataset dropdown to export all datasets.</div>
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button onclick="resetFilters()" style="
+              font-family:var(--font);font-size:12px;font-weight:600;
+              padding:7px 14px;border-radius:6px;cursor:pointer;
+              background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;
+              transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0'"
+              onmouseout="this.style.background='#f1f5f9'">↺ Reset filters</button>
+            <button id="download-btn" onclick="downloadDE()" style="
+              font-family:var(--font);font-size:12px;font-weight:600;
+              padding:7px 14px;border-radius:6px;cursor:pointer;
+              background:var(--color-accent);border:1px solid var(--color-accent);
+              color:#ffffff;transition:all 0.15s;">↓ Export CSV</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table id="de-table">
+            <thead>
+              <tr>
+                <th data-table="de" data-col="gene_symbol">Gene Symbol</th>
+                <th data-table="de" data-col="gene_name">Gene Name</th>
+                <th data-table="de" data-col="gene_id">Ensembl ID</th>
+                <th data-table="de" data-col="log2_fc" id="th-log2fc">log2FC</th>
+                <th data-table="de" data-col="padj">adj. p-value</th>
+                <th data-table="de" data-col="direction">Direction</th>
+                <th data-table="de" data-col="base_mean">Base Mean</th>
+              </tr>
+            </thead>
+            <tbody id="de-tbody">
+              <tr><td colspan="6"
+                style="text-align:center;padding:24px;color:#64748b;">
+                select a dataset and comparison to load results
+              </td></tr>
+            </tbody>
+          </table>
+          <div class="pagination">
+            <span id="page-info">—</span>
+            <div style="display:flex;gap:8px;">
+              <button id="prev-btn" onclick="changePage(-1)" disabled>← Previous</button>
+              <button id="next-btn" onclick="changePage(1)"  disabled>Next →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/download_utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/de-explorer.js"></script>
+</body>
+</html>

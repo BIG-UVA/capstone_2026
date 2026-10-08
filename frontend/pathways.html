@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>history.scrollRestoration = "manual"; window.scrollTo(0, 0);</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pathway Analysis — Microglial Transcriptomics</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="brand">Microglial Transcriptomics Explorer</a>
+    <a href="index.html">Home</a>
+    <a href="de-explorer.html">DE Explorer</a>
+    <a href="pathways.html" class="active">Pathway Analysis</a>
+    <a href="consensus.html">Consensus Genes</a>
+    <a href="heatmap.html">Gene Explorer</a>
+  </nav>
+
+  <div class="pw-page-wrapper">
+
+    <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+    <aside class="pw-sidebar">
+
+      <div class="sidebar-app-label">Pathway Analysis</div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Dataset</div>
+        <select id="dataset-select" title="Select dataset"></select>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Gene Set Database</div>
+        <div class="toggle-group" style="flex-wrap:wrap;">
+          <button class="toggle-btn active" data-value="KEGG">
+            <span class="toggle-icon">K</span> KEGG
+          </button>
+          <button class="toggle-btn" data-value="GO_BP">
+            <span class="toggle-icon">G</span> GO Biological Process
+          </button>
+          <button class="toggle-btn" data-value="GO_MF">
+            <span class="toggle-icon">G</span> GO Molecular Function
+          </button>
+          <button class="toggle-btn" data-value="HALLMARK">
+            <span class="toggle-icon">H</span> Hallmark
+          </button>
+          <button class="toggle-btn" data-value="REACTOME">
+            <span class="toggle-icon">R</span> Reactome
+          </button>
+          <button class="toggle-btn" data-value="WIKIPATHWAYS">
+            <span class="toggle-icon">W</span> WikiPathways
+          </button>
+        </div>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Show pathways</div>
+        <div class="pw-dir-options">
+          <div class="pw-dir-btn active" data-value="all">
+            <span class="dot-both"></span> All
+          </div>
+          <div class="pw-dir-btn" data-value="activated">
+            <span class="dot-activated"></span> Activated only
+          </div>
+          <div class="pw-dir-btn" data-value="suppressed">
+            <span class="dot-suppressed"></span> Suppressed only
+          </div>
+        </div>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Pathways to show</div>
+        <div class="slider-row">
+          <span style="font-size:10px;color:#64748b;">5</span>
+          <span class="slider-value" id="topn-value">20</span>
+          <span style="font-size:10px;color:#64748b;">50</span>
+        </div>
+        <input type="range" id="topn-slider" min="5" max="50" step="5" value="20"
+               title="Number of pathways to show">
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <div class="sidebar-section">
+        <div class="sidebar-label">Shared pathway threshold</div>
+        <div class="filter-options">
+          <div class="filter-option" data-value="1">In any dataset</div>
+          <div class="filter-option active" data-value="2">In any 2 datasets</div>
+          <div class="filter-option" data-value="3">In all 3 datasets</div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ── MAIN CONTENT ────────────────────────────────────── -->
+    <div class="pw-main">
+
+      <div>
+        <h1>Pathway Analysis</h1>
+        <p class="subtitle">Explore which biological pathways are activated or suppressed.
+           Dot size = genes in pathway. Positive NES = activated, negative = suppressed.
+           Click any pathway to see the genes driving it.</p>
+      </div>
+
+      <!-- dot plot -->
+      <div class="section">
+        <div class="section-title">Pathway Enrichment</div>
+        <div class="section-desc">Ranked by significance. Color intensity = -log10(padj).
+          Dot size = number of DE genes in pathway. Click any dot to load gene list below.</div>
+        <div class="plot-wrap">
+          <div id="pathway-plot" style="height:580px;width:100%;"></div>
+        </div>
+      </div>
+
+      <!-- genes in selected pathway -->
+      <div class="section">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div class="section-title" style="margin-bottom:4px;">Genes in Selected Pathway</div>
+            <div class="section-desc" style="margin-bottom:0;">Significant DE genes driving
+              the enrichment score. Click column headers to sort.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;margin-top:4px;">
+            <button onclick="resetFilters()" style="
+              font-family:var(--font);font-size:12px;font-weight:600;
+              padding:7px 14px;border-radius:6px;cursor:pointer;
+              background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;
+              transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0'"
+              onmouseout="this.style.background='#f1f5f9'">↺ Reset filters</button>
+            <button id="download-pathways-btn" onclick="downloadPathwayCSV()" style="
+              font-family:var(--font);font-size:12px;font-weight:600;
+              padding:7px 14px;border-radius:6px;cursor:pointer;
+              background:var(--color-accent);border:1px solid var(--color-accent);
+              color:#ffffff;transition:all 0.15s;">↓ Export CSV</button>
+          </div>
+        </div>
+
+        <div class="pathway-selected-card" id="pathway-selected-card">
+          <div class="pathway-selected-name" id="pathway-selected-name">—</div>
+          <div class="pathway-selected-stats">
+            <div class="pw-stat">
+              <div class="label">NES</div>
+              <div class="value" id="pathway-nes">—</div>
+            </div>
+            <div class="pw-stat">
+              <div class="label">adj. p-value</div>
+              <div class="value" id="pathway-padj">—</div>
+            </div>
+            <div class="pw-stat">
+              <div class="label">direction</div>
+              <div class="value" id="pathway-dir">—</div>
+            </div>
+          </div>
+          <button class="clear-btn" onclick="resetPathwayCard()">✕ clear</button>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th data-table="genes" data-col="gene_symbol">Gene Symbol</th>
+                <th data-table="genes" data-col="log2_fc">log2FC</th>
+                <th data-table="genes" data-col="padj">adj. p-value</th>
+                <th data-table="genes" data-col="direction">Direction</th>
+              </tr>
+            </thead>
+            <tbody id="pathway-gene-tbody">
+              <tr><td colspan="4"
+                style="text-align:center;padding:24px;color:#64748b;">
+                click a pathway in the dot plot to load genes
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- pathway heatmap -->
+      <div class="section" id="pathway-heatmap-section" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div class="section-title" style="margin-bottom:4px;">Pathway Gene Heatmap</div>
+            <div class="section-desc" style="margin-bottom:0;">Log2 fold change for the leading edge genes of the selected pathway.
+              Genes that fgsea identified as driving enrichment score in the selected dataset. The same genes are shown across all three 
+              contrasts for comparison. Only the source dataset's column reflects pathway driving behavior.
+              Color = log2FC (red = up, blue = down). ★ = padj &lt; 0.05.</div>
+          </div>
+          <button id="download-pathway-heatmap-btn" onclick="downloadPathwayHeatmapCSV()" style="
+            font-family:var(--font);font-size:12px;font-weight:600;
+            padding:7px 14px;border-radius:6px;cursor:pointer;
+            background:var(--color-accent);border:1px solid var(--color-accent);
+            color:#ffffff;transition:all 0.15s;flex-shrink:0;margin-top:4px;">
+            ↓ Export CSV
+          </button>
+        </div>
+        <div class="plot-wrap">
+          <div id="pathway-heatmap-plot" style="width:100%;"></div>
+        </div>
+      </div>
+
+      <!-- shared pathways -->
+      <div class="section">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div class="section-title" style="margin-bottom:4px;">Pathways Shared Across Datasets</div>
+            <div class="section-desc" style="margin-bottom:0;">Pathways enriched in multiple
+              datasets — the most consistent biological signals across disease models.
+              Click any column header to sort.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;margin-top:4px;">
+            <button onclick="resetFilters()" style="
+              font-family:var(--font);font-size:12px;font-weight:600;
+              padding:7px 14px;border-radius:6px;cursor:pointer;
+              background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;
+              transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0'"
+              onmouseout="this.style.background='#f1f5f9'">↺ Reset filters</button>
+            <button id="download-shared-btn" onclick="downloadSharedCSV()" style="
+              font-family:var(--font);font-size:12px;font-weight:600;
+              padding:7px 14px;border-radius:6px;cursor:pointer;
+              background:var(--color-accent);border:1px solid var(--color-accent);
+              color:#ffffff;transition:all 0.15s;">↓ Export CSV</button>
+          </div>
+        </div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th data-table="shared" data-col="pathway_name">Pathway</th>
+                <th data-table="shared" data-col="database">Database</th>
+                <th data-table="shared" data-col="n_datasets"># Datasets</th>
+                <th data-table="shared" data-col="mean_nes">Mean NES</th>
+                <th data-table="shared" data-col="mean_padj">Mean adj. p-value</th>
+              </tr>
+            </thead>
+            <tbody id="shared-tbody">
+              <tr><td colspan="5"
+                style="text-align:center;padding:24px;color:#64748b;">
+                loading...
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/download_utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/pathways.js"></script>
+</body>
+</html>

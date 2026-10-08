@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Microglial Transcriptomics Explorer</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="brand">Microglial Transcriptomics Explorer</a>
+    <a href="index.html"       class="active">Home</a>
+    <a href="de-explorer.html">DE Explorer</a>
+    <a href="pathways.html">Pathway Analysis</a>
+    <a href="consensus.html">Consensus Genes</a>
+    <a href="heatmap.html">Gene Explorer</a>
+  </nav>
+
+  <div class="page">
+
+    <div class="home-header">
+      <p class="org">UVA Harrislab · Neuroscience</p>
+      <h1>Microglial Transcriptomics Explorer</h1>
+      <p>An integrative analysis platform for exploring gene expression changes
+         in microglia across neurodegenerative disease models.</p>
+    </div>
+
+    <!-- stat cards -->
+    <div class="stat-grid" id="stat-grid">
+      <div class="stat-card gray">
+        <div class="stat-label">datasets</div>
+        <div class="stat-value" id="stat-datasets">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">genes analyzed</div>
+        <div class="stat-value" id="stat-genes">—</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">total samples</div>
+        <div class="stat-value" id="stat-samples">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">organism</div>
+        <div class="stat-value" style="font-size:15px;font-style:italic;">Mus musculus</div>
+      </div>
+    </div>
+
+    <!-- dataset cards -->
+    <h2>Explore a dataset</h2>
+    <div class="dataset-grid" id="dataset-grid">
+      <div class="chart-placeholder">
+        <div class="loading"><div class="spinner"></div> loading datasets...</div>
+      </div>
+    </div>
+
+    <!-- how to use -->
+    <h2>How to use this</h2>
+    <div class="how-to-grid">
+      <div class="how-to-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Pick a dataset</div>
+          <p>Choose a dataset and comparison to explore in the DE Explorer.</p>
+        </div>
+      </div>
+      <div class="how-to-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Find genes of interest</div>
+          <p>Hover over genes in the volcano plot for details. Click any gene to load its expression across samples.</p>
+        </div>
+      </div>
+      <div class="how-to-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Look for patterns</div>
+          <p>Use Pathway Analysis and Consensus Genes to find shared signals across disease models.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/download_utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/home.js"></script>
+</body>
+</html>

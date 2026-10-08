@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>history.scrollRestoration = "manual"; window.scrollTo(0, 0);</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Consensus Genes — Microglial Transcriptomics</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="brand">Microglial Transcriptomics Explorer</a>
+    <a href="index.html">Home</a>
+    <a href="de-explorer.html">DE Explorer</a>
+    <a href="pathways.html">Pathway Analysis</a>
+    <a href="consensus.html" class="active">Consensus Genes</a>
+    <a href="heatmap.html">Gene Explorer</a>
+  </nav>
+
+  <div class="cg-page-wrapper">
+
+    <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+    <aside class="cg-sidebar">
+
+      <div class="sidebar-app-label">Consensus Genes</div>
+
+      <!-- search -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Search gene</div>
+        <input type="text" id="gene-search"
+               placeholder="e.g. Trem2, Apoe..."
+               title="Search by gene symbol or name">
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <!-- overlap filter -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Show genes shared between</div>
+        <div class="overlap-options">
+
+          <div class="overlap-option active" data-value="any2">
+            <div class="opt-label">Any 2+ datasets</div>
+            <div class="opt-desc">Broadest overlap — any combination of 2 or more</div>
+          </div>
+
+          <div class="overlap-option" data-value="all3">
+            <div class="opt-label">All 3 datasets</div>
+            <div class="opt-desc">Most conserved — significant in every study</div>
+          </div>
+
+          <div class="overlap-option" data-value="infection">
+            <div class="opt-label">Infection datasets only</div>
+            <div class="opt-desc">GSE203655 + GSE146680 — T. gondii specific signals</div>
+          </div>
+
+          <div class="overlap-option" data-value="alz_infection">
+            <div class="opt-label">Alzheimer's + infection</div>
+            <div class="opt-desc">GSE212277 + either T. gondii dataset</div>
+          </div>
+
+        </div>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <!-- consistent direction -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Direction filter</div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="consistent-only"
+                 title="Show only genes with same direction in all datasets">
+          <span>Same direction in all overlapping datasets only</span>
+        </label>
+      </div>
+
+    </aside>
+
+    <!-- ── MAIN CONTENT ────────────────────────────────────── -->
+    <div class="cg-main">
+
+      <div>
+        <h1>Consensus Gene View</h1>
+        <p class="subtitle">Genes significantly differentially expressed across multiple
+           datasets — the most consistent microglial signals regardless of disease model.
+           Click any gene to load its expression across all datasets.</p>
+      </div>
+
+      <!-- consensus table -->
+      <div class="section">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <div class="section-title" style="margin-bottom:4px;">Consensus DE Genes</div>
+            <div class="section-desc" style="margin-bottom:0;">Click any column header
+              to sort — once for descending, again for ascending, again to clear.
+              Click any row to load expression below.</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;margin-top:4px;">
+            <button onclick="resetFilters()" style="
+              font-family:var(--font);font-size:12px;font-weight:600;
+              padding:7px 14px;border-radius:6px;cursor:pointer;
+              background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;
+              transition:all 0.15s;" onmouseover="this.style.background='#e2e8f0'"
+              onmouseout="this.style.background='#f1f5f9'">
+              ↺ Reset filters
+            </button>
+            <button id="download-consensus-btn" onclick="downloadConsensusCSV()" style="
+              font-family:var(--font);font-size:12px;font-weight:600;
+              padding:7px 14px;border-radius:6px;cursor:pointer;
+              background:var(--color-accent);border:1px solid var(--color-accent);
+              color:#ffffff;transition:all 0.15s;">
+              ↓ Export CSV
+            </button>
+          </div>
+        </div>
+        <div class="result-count" id="result-count"></div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th data-col="gene_symbol">Gene Symbol</th>
+                <th data-col="gene_name">Gene Name</th>
+                <th data-col="gene_id">Ensembl ID</th>
+                <th data-col="n_datasets"># Datasets</th>
+                <th data-col="datasets_list">Datasets</th>
+                <th data-col="consistent_dir">Consistent Direction</th>
+              </tr>
+            </thead>
+            <tbody id="consensus-tbody">
+              <tr><td colspan="6"
+                style="text-align:center;padding:24px;color:#64748b;">
+                loading...
+              </td></tr>
+            </tbody>
+          </table>
+          <div class="pagination">
+            <span id="consensus-page-info">—</span>
+            <div style="display:flex;gap:8px;">
+              <button id="consensus-prev-btn" onclick="changeConsensusPage(-1)" disabled>← Previous</button>
+              <button id="consensus-next-btn" onclick="changeConsensusPage(1)"  disabled>Next →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- expression chart -->
+      <div class="section">
+        <div class="section-title">Expression Across All Datasets</div>
+        <div class="section-desc">TPM for the selected gene across all samples.
+          Bars are grouped by dataset and colored by condition. Dataset labels
+          are shown above each group.</div>
+
+        <div class="gene-selected-card" id="gene-selected-card">
+          <div>
+            <div class="gene-selected-name" id="gene-selected-symbol">—</div>
+            <div class="gene-selected-full" id="gene-selected-name">—</div>
+          </div>
+          <button class="clear-btn" onclick="resetExpression()">✕ clear</button>
+        </div>
+
+        <div class="plot-wrap" id="expression-wrap">
+          <div id="expression-placeholder" class="expr-placeholder">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.5">
+              <path d="M3 3v18h18"/>
+              <path d="M7 16l4-4 4 4 4-4"/>
+            </svg>
+            Click a gene in the table above to load its expression
+          </div>
+          <div id="expression-plot"
+               style="height:440px;width:100%;display:none;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/download_utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/consensus.js"></script>
+</body>
+</html>
