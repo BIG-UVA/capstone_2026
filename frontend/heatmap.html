@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>history.scrollRestoration = 'manual'; window.scrollTo(0, 0);</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gene Explorer — Microglial Transcriptomics</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+
+  <nav>
+    <a href="index.html" class="brand">Microglial Transcriptomics Explorer</a>
+    <a href="index.html">Home</a>
+    <a href="de-explorer.html">DE Explorer</a>
+    <a href="pathways.html">Pathway Analysis</a>
+    <a href="consensus.html">Consensus Genes</a>
+    <a href="heatmap.html" class="active">Gene Explorer</a>
+  </nav>
+
+  <div class="hm-page-wrapper">
+
+    <!-- ── SIDEBAR ──────────────────────────────────────────── -->
+    <aside class="hm-sidebar">
+
+      <div class="sidebar-app-label">Gene Explorer</div>
+
+      <!-- gene search -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Search &amp; select genes</div>
+        <input type="text" id="gene-search"
+               placeholder="e.g. Trem2, Apoe..."
+               title="Search by gene symbol or name">
+        <div class="gene-search-results" id="gene-search-results">
+          <div class="no-results">Type to search genes</div>
+        </div>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <!-- selected genes -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">
+          Selected genes
+          (<strong id="selected-count">0</strong>)
+        </div>
+        <div class="selected-genes-list" id="selected-genes-list">
+          <div class="no-results">No genes selected</div>
+        </div>
+        <button class="clear-all-btn" onclick="clearAll()">✕ Clear all</button>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <!-- bulk select -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">Bulk select by dataset</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <button class="bulk-btn"
+            onclick="bulkSelectDataset('GSE212277','5xFAD','WT (Control)')">
+            + GSE212277 — Alzheimer's
+          </button>
+          <button class="bulk-btn"
+            onclick="bulkSelectDataset('GSE203655','STAT1-KO','Control')">
+            + GSE203655 — STAT1-KO
+          </button>
+          <button class="bulk-btn"
+            onclick="bulkSelectDataset('GSE146680','Microglia','Macrophage')">
+            + GSE146680 — Microglia/Macro
+          </button>
+          <button class="bulk-btn bulk-all" onclick="bulkSelectAll()">
+            + Select all datasets
+          </button>
+        </div>
+      </div>
+
+      <hr class="sidebar-divider">
+
+      <button class="build-btn" id="build-btn"
+              onclick="buildActiveTab()" disabled>
+        Build
+      </button>
+
+    </aside>
+
+    <!-- ── MAIN CONTENT ────────────────────────────────────── -->
+    <div class="hm-main">
+
+      <div>
+        <h1>Gene Explorer</h1>
+        <p class="subtitle">Select genes using the search box or bulk select buttons.
+           Switch between views using the tabs below.</p>
+      </div>
+
+      <div class="section">
+
+        <!-- tab bar -->
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="lfc"
+                  onclick="switchTab('lfc')">
+            Log2FC Heatmap
+          </button>
+          <button class="tab-btn" data-tab="tpm"
+                  onclick="switchTab('tpm')">
+            TPM Heatmap
+          </button>
+          <button class="tab-btn" data-tab="box"
+                  onclick="switchTab('box')">
+            Boxplot
+          </button>
+        </div>
+
+        <!-- tab 1: log2fc heatmap -->
+        <div class="tab-panel active" id="tab-lfc">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div class="section-title" style="margin-bottom:4px;">Log2 Fold Change Heatmap</div>
+              <div class="section-desc" style="margin-bottom:0;">
+                Rows = genes. Columns = datasets. Color = log2FC (red = up, blue = down).
+                ★ = padj &lt; 0.05.</div>
+            </div>
+            <button class="export-btn" id="export-lfc" onclick="downloadLFCCSV()">↓ Export CSV</button>
+          </div>
+          <div class="plot-wrap">
+            <div id="lfc-placeholder" class="hm-placeholder">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="1.2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+              Select genes then click Build
+            </div>
+            <div id="lfc-plot" style="width:100%;display:none;"></div>
+          </div>
+        </div>
+
+        <!-- tab 2: tpm heatmap -->
+        <div class="tab-panel" id="tab-tpm">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div class="section-title" style="margin-bottom:4px;">TPM Expression Heatmap</div>
+              <div class="section-desc" style="margin-bottom:0;">
+                Rows = genes. Columns = samples. Color = TPM expression level.
+                Samples grouped by dataset.</div>
+            </div>
+            <button class="export-btn" id="export-tpm" onclick="downloadTPMCSV()">↓ Export CSV</button>
+          </div>
+          <div class="plot-wrap">
+            <div id="tpm-placeholder" class="hm-placeholder">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="1.2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+              Select genes then click Build
+            </div>
+            <div id="tpm-plot" style="width:100%;display:none;"></div>
+          </div>
+        </div>
+
+        <!-- tab 3: boxplot -->
+        <div class="tab-panel" id="tab-box">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div class="section-title" style="margin-bottom:4px;">TPM Boxplot</div>
+              <div class="section-desc" style="margin-bottom:0;">
+                Distribution of TPM values per gene per dataset across biological replicates.
+                Each box = one gene in one dataset.</div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-shrink:0;">
+              <div id="box-scale-toggle" style="display:inline-flex;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;">
+                <button class="scale-toggle-btn active" data-value="log" style="
+                  font-family:var(--font);font-size:12px;font-weight:600;
+                  padding:7px 14px;cursor:pointer;border:none;
+                  background:var(--color-accent);color:#ffffff;transition:all 0.15s;">
+                  Log scale
+                </button>
+                <button class="scale-toggle-btn" data-value="linear" style="
+                  font-family:var(--font);font-size:12px;font-weight:600;
+                  padding:7px 14px;cursor:pointer;border:none;border-left:1px solid #e2e8f0;
+                  background:#f8fafc;color:#64748b;transition:all 0.15s;">
+                  Linear scale
+                </button>
+              </div>
+              <button class="export-btn" id="export-box" onclick="downloadTPMCSV()">↓ Export CSV</button>
+            </div>
+          </div>
+          <div class="plot-wrap">
+            <div id="box-placeholder" class="hm-placeholder">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="1.5">
+                <rect x="4" y="6" width="6" height="12" rx="1"/>
+                <rect x="14" y="9" width="6" height="9" rx="1"/>
+                <line x1="7" y1="3" x2="7" y2="6"/>
+                <line x1="7" y1="18" x2="7" y2="21"/>
+                <line x1="17" y1="5" x2="17" y2="9"/>
+                <line x1="17" y1="18" x2="17" y2="21"/>
+              </svg>
+              Select genes then click Build
+            </div>
+            <div id="box-plot" style="width:100%;display:none;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="js/download_utils.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/heatmap.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+"Comparison","Dataset","Total_Genes_Tested","Upregulated","Downregulated","Not_Significant"
+"5xFAD vs WT (Alzheimer's)","GSE212277",13732,2481,2041,9210
+"STAT1-KO vs Control (T. gondii)","GSE203655",14471,1141,1518,11812
+"Microglia vs Macrophage (T. gondii)","GSE146680",17352,3347,2851,11154

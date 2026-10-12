@@ -1,0 +1,14 @@
+.git
+.gitignore
+__pycache__
+**/__pycache__
+*.pyc
+.env
+venv/
+results/
+db_dump/
+analysis/
+db/
+*.png
+*.csv
+*.RData
